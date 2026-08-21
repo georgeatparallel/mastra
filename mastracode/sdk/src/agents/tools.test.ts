@@ -1,15 +1,16 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../tools/index.js', () => ({
-  createWebSearchTool: () => ({ description: 'web search' }),
-  createWebExtractTool: () => ({ description: 'web extract' }),
-  hasTavilyKey: () => false,
+  getConfiguredWebToolsProvider: vi.fn(() => undefined),
   requestSandboxAccessTool: { description: 'request sandbox access' },
 }));
 
+import { getConfiguredWebToolsProvider } from '../tools/index.js';
 import { createDynamicTools, createToolHooks } from './tools.js';
 
-function createRequestContext(state: Record<string, unknown>, modeId: string = 'build') {
+const mockedGetConfiguredWebToolsProvider = vi.mocked(getConfiguredWebToolsProvider);
+
+function createRequestContext(state: Record<string, unknown>, modeId: string = 'build', modelId?: string) {
   const getState = () => state;
   return {
     get(key: string) {
@@ -17,7 +18,7 @@ function createRequestContext(state: Record<string, unknown>, modeId: string = '
       return {
         modeId,
         getState,
-        session: { state: { get: getState } },
+        session: { state: { get: getState }, modelId },
       };
     },
   } as any;
@@ -52,6 +53,29 @@ describe('createDynamicTools', () => {
 
     expect(allowedTools.request_access).not.toBe(requestAccessReplacement);
     expect(allowedTools.request_access.description).toBe('request sandbox access');
+  });
+
+  it('maps the configured provider to the built-in web tool names', () => {
+    mockedGetConfiguredWebToolsProvider.mockReturnValueOnce({
+      id: 'parallel',
+      createSearchTool: () => ({ id: 'web-search', description: 'parallel search' }) as any,
+      createExtractTool: () => ({ id: 'web-extract', description: 'parallel extract' }) as any,
+    });
+
+    const allowedTools = createDynamicTools()({ requestContext: createRequestContext({}) });
+
+    expect(allowedTools.web_search).toMatchObject({ id: 'web-search', description: 'parallel search' });
+    expect(allowedTools.web_extract).toMatchObject({ id: 'web-extract', description: 'parallel extract' });
+  });
+
+  it.each([
+    ['anthropic/claude-opus-4-6', 'provider'],
+    ['openai/gpt-5.5', 'provider'],
+  ])('preserves the %s native search fallback when no external provider is configured', (modelId, type) => {
+    const allowedTools = createDynamicTools()({ requestContext: createRequestContext({}, 'build', modelId) });
+
+    expect(allowedTools.web_search).toMatchObject({ type });
+    expect(allowedTools).not.toHaveProperty('web_extract');
   });
 });
 

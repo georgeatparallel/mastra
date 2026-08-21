@@ -2,12 +2,37 @@ import { describe, expect, it, vi } from 'vitest';
 
 // Keep prompt tests independent from optional web-search package artifacts.
 vi.mock('../../tools/index.js', () => ({
-  hasTavilyKey: () => false,
+  getConfiguredWebToolsProvider: vi.fn(() => undefined),
 }));
 
+import { getConfiguredWebToolsProvider } from '../../tools/index.js';
 import { buildFullPrompt } from '../prompts/index.js';
 
+const mockedGetConfiguredWebToolsProvider = vi.mocked(getConfiguredWebToolsProvider);
+
 describe('buildFullPrompt', () => {
+  it('includes the existing web tool guidance when an external provider is configured', () => {
+    mockedGetConfiguredWebToolsProvider.mockReturnValueOnce({ id: 'parallel' } as any);
+
+    const prompt = buildFullPrompt({
+      projectPath: '/tmp/project',
+      projectName: 'test-project',
+      gitBranch: 'main',
+      platform: 'darwin',
+      date: '2026-03-23',
+      mode: 'build',
+      modelId: 'google/gemini-3.1-pro-preview',
+      activePlan: null,
+      modeId: 'build',
+      currentDate: '2026-03-23',
+      workingDir: '/tmp/project',
+      state: { permissionRules: { tools: {} } },
+    });
+
+    expect(prompt).toContain('**web_search**');
+    expect(prompt).toContain('**web_extract**');
+  });
+
   it('includes model-specific prompt content for gpt-5.4', () => {
     const prompt = buildFullPrompt({
       projectPath: '/tmp/project',

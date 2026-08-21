@@ -151,11 +151,23 @@ Request access to directories outside the project root. The user is prompted to 
 
 Search the web for documentation, error messages, package APIs, and other information.
 
-This tool is available through three providers:
+This tool is available through four providers:
 
-- **Tavily**: When the `TAVILY_API_KEY` environment variable is set (takes priority).
-- **Anthropic web search**: Built into Anthropic models, used when no Tavily key is configured.
-- **OpenAI web search**: Built into OpenAI models, used when no Tavily key is configured.
+- **Parallel**: When the `PARALLEL_API_KEY` environment variable is set.
+- **Tavily**: When `TAVILY_API_KEY` is set and no Parallel key is configured.
+- **Anthropic web search**: Built into Anthropic models, used when no external provider key is configured.
+- **OpenAI web search**: Built into OpenAI models, used when no external provider key is configured.
+
+Set `PARALLEL_API_KEY` to use Parallel as the default external provider. When both external provider keys are set, Mastra Code uses Parallel. The input schema depends on the active provider.
+
+#### Parallel
+
+| Parameter | Type | Required | Description |
+| - | - | - | - |
+| `search_queries` | `string[]` | Yes | Concise keyword search queries. Provide 2 to 3 queries for best results. |
+| `objective` | `string` | No | Natural-language description of the goal driving the search |
+
+#### Tavily
 
 | Parameter | Type | Required | Description |
 | - | - | - | - |
@@ -166,7 +178,16 @@ This tool is available through three providers:
 
 ### `web_extract`
 
-Extract the full content of one or more web pages. Requires a Tavily API key (`TAVILY_API_KEY`).
+Extract the full content of one or more web pages. Requires `PARALLEL_API_KEY` or `TAVILY_API_KEY`. Parallel takes priority when both keys are set.
+
+#### Parallel
+
+| Parameter | Type | Required | Description |
+| - | - | - | - |
+| `urls` | `string[]` | Yes | URLs to extract content from, up to 20 per request |
+| `objective` | `string` | No | Natural-language description of the information to extract |
+
+#### Tavily
 
 | Parameter | Type | Required | Description |
 | - | - | - | - |

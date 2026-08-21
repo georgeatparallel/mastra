@@ -4,9 +4,7 @@ import { describe, it, expect, vi } from 'vitest';
 import z from 'zod';
 
 vi.mock('../tools/index.js', () => ({
-  createWebSearchTool: () => ({ description: 'web search' }),
-  createWebExtractTool: () => ({ description: 'web extract' }),
-  hasTavilyKey: () => false,
+  getConfiguredWebToolsProvider: () => undefined,
   requestSandboxAccessTool: { description: 'request sandbox access' },
 }));
 

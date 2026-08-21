@@ -6,7 +6,7 @@ import { afterAll, describe, expect, it, vi } from 'vitest';
 
 // Keep prompt tests independent from optional web-search package artifacts.
 vi.mock('../../tools/index.js', () => ({
-  hasTavilyKey: () => false,
+  getConfiguredWebToolsProvider: () => undefined,
 }));
 
 const mocks = vi.hoisted(() => ({ home: '' }));

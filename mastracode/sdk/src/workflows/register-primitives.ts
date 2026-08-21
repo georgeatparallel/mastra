@@ -7,7 +7,7 @@
  *   - workflow-builder sub-agent (so `create-workflow` can delegate)
  *   - code-agent (as a plain agent, callable via agent steps)
  *   - workspace tools (view/write/edit/find_files/execute_command/etc.)
- *   - web tools (Tavily-gated) so workflows can compose search/extract steps
+ *   - model-independent web tools so workflows can compose search/extract steps
  *   - notification_inbox
  *   - snapshot of MCP tools from mcpManager
  *
@@ -18,10 +18,10 @@
  * Tradeoffs:
  *   - MCP tools are snapshotted. Servers added after boot are invisible to
  *     the workflow-builder until restart.
- *   - Web tool flavor is Tavily-only. Provider-native (Anthropic/OpenAI) web
- *     tools are skipped because they'd freeze workflows to one model provider.
- *   - Workflow tool steps get the closed-over workspace + auth (Tavily key,
- *     MCP server credentials), not per-request permissions — deliberate; if
+ *   - Provider-native (Anthropic/OpenAI) web tools are skipped because they'd
+ *     freeze workflows to one model provider.
+ *   - Workflow tool steps get the closed-over workspace and credentials
+ *     (web-provider auth and MCP server credentials), not per-request permissions — deliberate; if
  *     the user built + saved the workflow they meant to run it.
  */
 import type { Agent } from '@mastra/core/agent';
@@ -33,7 +33,7 @@ import { LazyNotificationsStorage } from '../agents/tools.js';
 import { workflowBuilderAgent } from '../agents/workflow-builder-agent.js';
 import type { McpManager } from '../mcp';
 import { MC_TOOLS } from '../tool-names.js';
-import { createWebExtractTool, createWebSearchTool, hasTavilyKey } from '../tools/web-search.js';
+import { getConfiguredWebToolsProvider } from '../tools/web-search.js';
 
 export interface RegisterWorkflowBuilderPrimitivesOptions {
   projectPath: string;
@@ -83,11 +83,12 @@ export async function registerWorkflowBuilderPrimitives(
     mastra.addTool(tool, toolId);
   }
 
-  // 3. Web tools — Tavily only. Provider-native web tools (Anthropic/OpenAI)
-  //    are model-locked and would freeze workflows to one provider.
-  if (hasTavilyKey()) {
-    mastra.addTool(createWebSearchTool(), 'web-search');
-    mastra.addTool(createWebExtractTool(), 'web-extract');
+  // 3. Model-independent web tools. Provider-native web tools
+  //    (Anthropic/OpenAI) would freeze workflows to one model provider.
+  const configuredWebToolsProvider = getConfiguredWebToolsProvider();
+  if (configuredWebToolsProvider) {
+    mastra.addTool(configuredWebToolsProvider.createSearchTool(), 'web-search');
+    mastra.addTool(configuredWebToolsProvider.createExtractTool(), 'web-extract');
   }
 
   // 4. notification_inbox — LazyNotificationsStorage resolves the notifications

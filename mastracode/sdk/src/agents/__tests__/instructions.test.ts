@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 
 vi.mock('../../tools/index.js', () => ({
-  hasTavilyKey: () => false,
+  getConfiguredWebToolsProvider: () => undefined,
 }));
 
 vi.mock('../../utils/project.js', () => ({
