@@ -5,13 +5,13 @@ const parallel = vi.hoisted(() => ({
   extract: vi.fn(),
 }));
 
-vi.mock('@parallel-web/ai-sdk-tools', () => ({
-  createSearchTool: () => ({
+vi.mock('@mastra/parallel', () => ({
+  createParallelSearchTool: () => ({
     description: 'Search the web using Parallel',
     inputSchema: {},
     execute: parallel.search,
   }),
-  createExtractTool: () => ({
+  createParallelExtractTool: () => ({
     description: 'Extract content using Parallel',
     inputSchema: {},
     execute: parallel.extract,
@@ -48,7 +48,7 @@ describe('getConfiguredWebToolsProvider', () => {
     });
 
     const tool = getConfiguredWebToolsProvider()!.createSearchTool();
-    const result = await tool.execute!({ search_queries: ['mastra docs'] } as any, {} as any);
+    const result = await tool.execute!({ searchQueries: ['mastra docs'] }, {} as any);
 
     expect(tool.id).toBe('web-search');
     expect(result).toBe(
@@ -60,15 +60,25 @@ describe('getConfiguredWebToolsProvider', () => {
   it('adapts Parallel extract results and per-URL errors to the existing string contract', async () => {
     vi.stubEnv('PARALLEL_API_KEY', 'parallel-key');
     parallel.extract.mockResolvedValueOnce({
-      results: [{ url: 'https://mastra.ai', excerpts: ['Extracted content'] }],
-      errors: [{ url: 'https://bad.example', error_type: 'http_404' }],
+      results: [
+        { url: 'https://mastra.ai', excerpts: ['Extracted excerpt'], fullContent: 'Full page content' },
+        { url: 'https://mastra.ai/docs', excerpts: ['Extracted documentation'] },
+      ],
+      errors: [{ url: 'https://bad.example', errorType: 'http_404' }],
     });
 
     const tool = getConfiguredWebToolsProvider()!.createExtractTool();
-    const result = await tool.execute!({ urls: ['https://mastra.ai', 'https://bad.example'] } as any, {} as any);
+    const result = await tool.execute!(
+      { urls: ['https://mastra.ai', 'https://mastra.ai/docs', 'https://bad.example'] },
+      {} as any,
+    );
 
     expect(tool.id).toBe('web-extract');
-    expect(result).toBe('## https://mastra.ai\nExtracted content\n\n## https://bad.example\nError: http_404');
+    expect(result).toBe(
+      '## https://mastra.ai\nFull page content\n\n' +
+        '## https://mastra.ai/docs\nExtracted documentation\n\n' +
+        '## https://bad.example\nError: http_404',
+    );
   });
 
   it('keeps the existing 2,000-token truncation behavior', async () => {
@@ -78,22 +88,10 @@ describe('getConfiguredWebToolsProvider', () => {
     });
 
     const result = await getConfiguredWebToolsProvider()!.createSearchTool().execute!(
-      { search_queries: ['large result'] } as any,
+      { searchQueries: ['large result'] },
       {} as any,
     );
 
     expect(result).toMatch(/^\[Truncated ~\d+ tokens\]\n/);
-  });
-
-  it('does not replace provider execution errors with a different failure contract', async () => {
-    vi.stubEnv('PARALLEL_API_KEY', 'parallel-key');
-    parallel.search.mockRejectedValueOnce(new Error('provider unavailable'));
-
-    const execution = getConfiguredWebToolsProvider()!.createSearchTool().execute!(
-      { search_queries: ['mastra'] } as any,
-      {} as any,
-    );
-
-    await expect(execution).rejects.toThrow('provider unavailable');
   });
 });

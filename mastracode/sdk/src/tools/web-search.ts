@@ -1,9 +1,6 @@
-import { createTool } from '@mastra/core/tools';
+import { createTool, isValidationError } from '@mastra/core/tools';
+import { createParallelExtractTool, createParallelSearchTool } from '@mastra/parallel';
 import { createTavilySearchTool, createTavilyExtractTool } from '@mastra/tavily';
-import {
-  createExtractTool as createParallelExtractTool,
-  createSearchTool as createParallelSearchTool,
-} from '@parallel-web/ai-sdk-tools';
 
 import { truncateStringForTokenEstimate } from '../utils/token-estimator.js';
 
@@ -11,11 +8,6 @@ const MAX_WEB_SEARCH_TOKENS = 2_000;
 const MAX_WEB_EXTRACT_TOKENS = 2_000;
 
 const MIN_RELEVANCE_SCORE = 0.25;
-
-type NonStreamingToolOutput<T extends { execute?: (...args: any[]) => unknown }> = Exclude<
-  Awaited<ReturnType<NonNullable<T['execute']>>>,
-  AsyncIterable<unknown>
->;
 
 /**
  * Check whether a Tavily API key is available in the environment.
@@ -99,11 +91,10 @@ function createParallelWebSearchTool() {
   return createTool({
     id: 'web-search',
     description: parallelSearchTool.description!,
-    inputSchema: parallelSearchTool.inputSchema as any,
+    inputSchema: parallelSearchTool.inputSchema!,
     execute: async (input, context) => {
-      const output = (await parallelSearchTool.execute!(input as any, context as any)) as NonStreamingToolOutput<
-        typeof parallelSearchTool
-      >;
+      const output = await parallelSearchTool.execute!(input, context);
+      if (!output || isValidationError(output)) return output;
       const parts: string[] = [];
 
       for (const result of output.results) {
@@ -122,19 +113,18 @@ function createParallelWebExtractTool() {
   return createTool({
     id: 'web-extract',
     description: parallelExtractTool.description!,
-    inputSchema: parallelExtractTool.inputSchema as any,
+    inputSchema: parallelExtractTool.inputSchema!,
     execute: async (input, context) => {
-      const output = (await parallelExtractTool.execute!(input as any, context as any)) as NonStreamingToolOutput<
-        typeof parallelExtractTool
-      >;
+      const output = await parallelExtractTool.execute!(input, context);
+      if (!output || isValidationError(output)) return output;
       const parts: string[] = [];
 
       for (const result of output.results) {
-        parts.push(`## ${result.url}\n${result.excerpts.join('\n\n')}`);
+        parts.push(`## ${result.url}\n${result.fullContent ?? result.excerpts.join('\n\n')}`);
       }
 
       for (const error of output.errors) {
-        parts.push(`## ${error.url}\nError: ${error.error_type}`);
+        parts.push(`## ${error.url}\nError: ${error.errorType}`);
       }
 
       return truncateStringForTokenEstimate(parts.join('\n\n'), MAX_WEB_EXTRACT_TOKENS);

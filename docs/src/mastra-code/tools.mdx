@@ -164,7 +164,7 @@ Set `PARALLEL_API_KEY` to use Parallel as the default external provider. When bo
 
 | Parameter | Type | Required | Description |
 | - | - | - | - |
-| `search_queries` | `string[]` | Yes | Concise keyword search queries. Provide 2 to 3 queries for best results. |
+| `searchQueries` | `string[]` | Yes | Concise keyword search queries. Provide 2 to 3 queries for best results. |
 | `objective` | `string` | No | Natural-language description of the goal driving the search |
 
 #### Tavily
@@ -178,7 +178,7 @@ Set `PARALLEL_API_KEY` to use Parallel as the default external provider. When bo
 
 ### `web_extract`
 
-Extract the full content of one or more web pages. Requires `PARALLEL_API_KEY` or `TAVILY_API_KEY`. Parallel takes priority when both keys are set.
+Extract content from one or more web pages. Requires `PARALLEL_API_KEY` or `TAVILY_API_KEY`. Parallel takes priority when both keys are set.
 
 #### Parallel
 
@@ -186,6 +186,7 @@ Extract the full content of one or more web pages. Requires `PARALLEL_API_KEY` o
 | - | - | - | - |
 | `urls` | `string[]` | Yes | URLs to extract content from, up to 20 per request |
 | `objective` | `string` | No | Natural-language description of the information to extract |
+| `fullContent` | `boolean \| number` | No | Return full page content, optionally limited to a maximum character count |
 
 #### Tavily
 
